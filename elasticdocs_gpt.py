@@ -16,7 +16,8 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain.schema.output_parser import StrOutputParser
 from langchain.schema.runnable import RunnablePassthrough
-openai_embedding=OpenAIEmbeddings(api_key="sk-proj-n2gSbdt3L5MZVfdhNDtoT3BlbkFJW39ouvAFUqzMZRa4AqdE")
+from langchain_openai import OpenAIEmbeddings
+# openai_embedding=OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY"))
 
 template="""
 You are an assistant for question-answering tasks.you should answer the  first in general and then in details base on provided context in the list.
@@ -46,25 +47,25 @@ Question: {question}
 Context: {context} 
 Answer:
 """
+from dotenv import load_dotenv
+load_dotenv()
 
-openai_embedding=OpenAIEmbeddings(api_key="sk-proj-n2gSbdt3L5MZVfdhNDtoT3BlbkFJW39ouvAFUqzMZRa4AqdE")
+openai_embedding=OpenAIEmbeddings(api_key=os.getenv("OPENAI_API_KEY"))
 
-from langchain_openai import OpenAIEmbeddings
 
 embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
 
-loaded_embeddings = np.load('embedded_data_filtered_test1.npy',allow_pickle=True)
-data=loaded_embeddings
+# loaded_embeddings = np.load('embedded_data_filtered_test1.npy',allow_pickle=True)
+# data=loaded_embeddings
 
 cloud_id ="344d890d63df49d49082e1d70ca3d5b9:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJGE3YTAxMzkxZTRmYjQ5OWNhYjA0NzExYTdlOTYwYjc3JGZiZGU3NjdlZTg5ZjQxMGRiOThmY2U0OTkzZjFhYWZk",
 
-openai.api_key = 'sk-proj-n2gSbdt3L5MZVfdhNDtoT3BlbkFJW39ouvAFUqzMZRa4AqdE'
+# openai.api_key = os.getenv("OPENAI_API_KEY")
 import os
 from openai import OpenAI
 model = "gpt-4o-mini"
 client = OpenAI(
-    # This is the default and can be omitted
-    api_key="sk-proj-n2gSbdt3L5MZVfdhNDtoT3BlbkFJW39ouvAFUqzMZRa4AqdE"
+    api_key=os.getenv("OPENAI_API_KEY")
 )
 
 def es_connect():
@@ -97,7 +98,7 @@ vector_db=ElasticsearchStore(
 def generate_embedding(text):
     
     text = text.replace("\n", " ")
-    embeddings = OpenAIEmbeddings(api_key="sk-proj-n2gSbdt3L5MZVfdhNDtoT3BlbkFJW39ouvAFUqzMZRa4AqdE",model="text-embedding-ada-002", chunk_size=500)
+    embeddings = OpenAIEmbeddings(api_key=os.getenv("OPENAI_API_KEY"),model="text-embedding-ada-002", chunk_size=500)
     # return client.embeddings.create(model="text-embedding-ada-002",input = [text]).data[0].embedding
     return embeddings.embed_documents([text])[0]
 
@@ -241,7 +242,7 @@ def truncate_text(text, max_tokens):
     return ' '.join(tokens[:max_tokens])
 
 # Generate a response from ChatGPT based on the given prompt
-def chat_gpt(prompt, model="gpt-3.5-turbo", max_tokens=1024, max_context_tokens=4000, safety_margin=5):
+def chat_gpt(prompt, max_tokens=1024, max_context_tokens=4000, safety_margin=5):
     # Truncate the prompt content to fit within the model's context length
     truncated_prompt = truncate_text(prompt, max_context_tokens - max_tokens - safety_margin)
 
@@ -288,7 +289,7 @@ if submit_button:
 # )
     retriever=vector_db.as_retriever()
     prompt=ChatPromptTemplate.from_template(template)
-    llm=ChatOpenAI(api_key="sk-proj-n2gSbdt3L5MZVfdhNDtoT3BlbkFJW39ouvAFUqzMZRa4AqdE",model="gpt-4o-mini",temperature=1)
+    llm=ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"),model="gpt-4o-mini",temperature=1)
     rag_chain=(
     {"context":retriever,"question":RunnablePassthrough()}
     | prompt
