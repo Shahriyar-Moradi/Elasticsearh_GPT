@@ -136,6 +136,61 @@ def index_data(index_name, data):
 
 
 
+# def search(query_text):
+#     # cid = os.environ['cloud_id']
+#     # cp = os.environ['cloud_pass']
+#     # cu = os.environ['cloud_user']
+#     es = es_connect()
+
+#     # Elasticsearch query (BM25) and kNN configuration for hybrid search
+#     query = {
+#         "bool": {
+#             "must": [{
+#                 "match": {
+#                     "title": {
+#                         "query": query_text,
+#                         "boost": 1
+#                     }
+#                 }
+#             }],
+#             "filter": [{
+#                 "exists": {
+#                     "field": "title-vector"
+#                 }
+#             }]
+#         }
+#     }
+
+#     knn = {
+#         "field": "title-vector",
+#         "k": 1,
+#         "num_candidates": 20,
+#         "query_vector_builder": {
+#             "text_embedding": {
+#                 "model_id": "sentence-transformers__all-distilroberta-v1",
+#                 "model_text": query_text
+#             }
+#         },
+#         "boost": 24
+#     }
+
+#     fields = ["title", "body_content", "url"]
+#     index = 'test1'
+#     resp = es.search(index=index,
+#                      query=query,
+#                      knn=knn,
+#                      fields=fields,
+#                      size=1,
+#                      source=False)
+
+#     body = resp['hits']['hits'][0]['fields']['body_content'][0]
+#     url = resp['hits']['hits'][0]['fields']['url'][0]
+
+#     return body, url
+
+
+
+
 index_name = 'test1'
 # create_index(index_name)
 # index_data(index_name, data)
@@ -157,7 +212,26 @@ def search(query):
             }
         }
     }
-
+#     script_query = {
+#     "script_score": {
+#         "query": {"match_all": {}},
+#         "script": {
+#             "source": "cosineSimilarity(params.query_vector, 'abs_emb') + 1.0",
+#             "params": {"query_vector": query_embedding}
+#         }
+#     }
+# }
+    
+    response = es.search(
+        index=index_name,
+        request_timeout=60,
+        body={
+            "size": 4,
+            "query": script_query
+        }
+    )
+    
+    return response['hits']['hits']
 
 
 def truncate_text(text, max_tokens):
