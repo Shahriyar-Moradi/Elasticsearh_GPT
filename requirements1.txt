@@ -1,0 +1,4 @@
+streamlit
+openai
+elasticsearch
+langchain_openai
