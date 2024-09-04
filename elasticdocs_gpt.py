@@ -91,7 +91,7 @@ vector_db=ElasticsearchStore(
         
     embedding=openai_embedding,
         # embedding=model_ST.encode(docs),
-    index_name="test1",
+    index_name="new_govdata_sep4th",
 )
 
 
