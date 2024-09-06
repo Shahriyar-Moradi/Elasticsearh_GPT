@@ -66,31 +66,18 @@ model = "gpt-4o-mini"
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
+es_api_key = os.getenv('ES_API_KEY')
+es_cloud_id = os.getenv('ES_CLOUD_ID')
 
-def es_connect():
-    # es  = Elasticsearch("http://localhost:9200")
-    # es = Elasticsearch(es_api_key="bjV3WUo1RUJYa1ZnQmsydm1sRUc6ZlpsZ3BtVHBUX096RTFpa1NoNFhLZw==",es_cloud_id="344d890d63df49d49082e1d70ca3d5b9:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJGE3YTAxMzkxZTRmYjQ5OWNhYjA0NzExYTdlOTYwYjc3JGZiZGU3NjdlZTg5ZjQxMGRiOThmY2U0OTkzZjFhYWZk",
-    #      )
-    es = Elasticsearch(
-  "https://a7a01391e4fb499cab04711a7e960b77.us-central1.gcp.cloud.es.io:443",
-  api_key="bjV3WUo1RUJYa1ZnQmsydm1sRUc6ZlpsZ3BtVHBUX096RTFpa1NoNFhLZw==",
-  # cloud_id=
-)
-    return es
 
-es  = Elasticsearch("http://localhost:9200")
 
-es=Elasticsearch(
-        api_key="bjV3WUo1RUJYa1ZnQmsydm1sRUc6ZlpsZ3BtVHBUX096RTFpa1NoNFhLZw==",
-        cloud_id="344d890d63df49d49082e1d70ca3d5b9:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJGE3YTAxMzkxZTRmYjQ5OWNhYjA0NzExYTdlOTYwYjc3JGZiZGU3NjdlZTg5ZjQxMGRiOThmY2U0OTkzZjFhYWZk",
-)
+
+
 
 vector_db=ElasticsearchStore(
-       es_api_key="bWVRdnZaRUJYMG9XeGVZemN3X046d2JzZlpLX1VTaE94X1JfTm5nckd6dw==",
-        es_cloud_id="15f305c7c411445bac5129413396ccd1:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJDQ2YzRkYWRhOGQ1ZDQxNDRiMWY1OWExNWVhZjA5NmE5JDRjY2I4OGIxMmU4ZjQwNGI5NDM2YTFiNmFmNmU1M2Q1",
-        
+      es_api_key = os.getenv('ES_API_KEY'),
+    es_cloud_id = os.getenv('ES_CLOUD_ID'),
     embedding=openai_embedding,
-        # embedding=model_ST.encode(docs),
     index_name="new_govdata_sep4th",
 )
 
