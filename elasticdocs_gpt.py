@@ -78,7 +78,7 @@ vector_db=ElasticsearchStore(
       es_api_key = os.getenv('ES_API_KEY'),
     es_cloud_id = os.getenv('ES_CLOUD_ID'),
     embedding=openai_embedding,
-    index_name="new_govdata_sep4th",
+    index_name="test1",
 )
 
 
