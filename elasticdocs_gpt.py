@@ -23,7 +23,7 @@ vector_db = ElasticsearchStore(
 # Define prompt template
 prompt_template = """
 
-You are an assistant for question-answering tasks.First, answer with your general knowledge and you should answer the  first in general and then if any question is asked answer question not in any sisuation. in details base on provided context in the list.
+You are an assistant for question-answering tasks.First, answer with your general knowledge and you should answer the  first in general and then if any question is asked answer question not in any sisuation.follow the coversation not only answe the question with list of contracts
 Use the following pieces of retrieved context to answer the question. 
 ou are a helpful assistant and a government contract specialist. As a government contract specialist with extensive expertise, your task is to analyze the information of the provided government contracts and respond to a user's inquiry. When crafting your response, please adhere to the following guidelines:
     
