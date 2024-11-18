@@ -1,0 +1,127 @@
+import os
+import streamlit as st
+
+from elasticsearch import Elasticsearch,helpers
+import numpy as np
+import csv
+import openai
+from openai import OpenAI
+from typing import List
+from langchain_openai import ChatOpenAI,OpenAIEmbeddings
+from langchain.prompts import ChatPromptTemplate
+from langchain_elasticsearch import ElasticsearchStore
+
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_community.embeddings import OpenAIEmbeddings
+from langchain.schema.output_parser import StrOutputParser
+from langchain.schema.runnable import RunnablePassthrough
+from langchain_openai import OpenAIEmbeddings
+
+from dotenv import load_dotenv
+
+load_dotenv()  # take environment variables from .env.
+
+template="""
+You are an assistant for question-answering tasks.you should answer the  first in general and then in details base on provided context in the list.
+Use the following pieces of retrieved context to answer the question. 
+ou are a helpful assistant and a government contract specialist. As a government contract specialist with extensive expertise, your task is to analyze the information of the provided government contracts and respond to a user's inquiry. When crafting your response, please adhere to the following guidelines:
+    
+    Please list the contracts in the following format:
+   1) Title: title of the contract
+   2) Decription: Brief description about the contract
+   3)country and city
+   4) Vendor: Who is offering the contract
+   5) Active: Whether it is active or not
+   6) Award date (If Non-Active): date on which it was awarded
+   7) Award amount (If Non-Active): Money for the contract
+   8) Award number (If Non-Active): award number for the contract
+   9) Link: link to the contract 
+
+
+    Please Remember:
+       1) If a user asks for awards details, don't tell them that you don't have the capability of delivering it. If there are no award details available, tell the user these contracts are active thus there are no award detail available.
+       2) If a user akss for award details of similar contracts, only list those contracts which have award details in them.
+       3) Your first priority should be to always display Active contracts. If not available or specified by user, then display non-active contracts
+
+If you don't know the answer, just say that you don't know. 
+Use five sentences minimum and keep the answer concise.
+Question: {question} 
+Context: {context} 
+Answer:
+"""
+
+
+openai_embedding=OpenAIEmbeddings(api_key=os.getenv("OPENAI_API_KEY"))
+embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+model = "gpt-4o-mini"
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")
+)
+es_api_key = os.getenv('ES_API_KEY')
+es_cloud_id = os.getenv('ES_CLOUD_ID')
+
+vector_db=ElasticsearchStore(
+      es_api_key = os.getenv('ES_API_KEY'),
+    es_cloud_id = os.getenv('ES_CLOUD_ID'),
+    embedding=openai_embedding,
+    index_name="test1",
+)
+
+
+# def generate_embedding(text):
+#     text = text.replace("\n", " ")
+#     embeddings = OpenAIEmbeddings(api_key=os.getenv("OPENAI_API_KEY"),model="text-embedding-ada-002", chunk_size=500)
+#     # return client.embeddings.create(model="text-embedding-ada-002",input = [text]).data[0].embedding
+#     return embeddings.embed_documents([text])[0]
+
+
+def truncate_text(text, max_tokens):
+    tokens = text.split()
+    if len(tokens) <= max_tokens:
+        return text
+
+    return ' '.join(tokens[:max_tokens])
+
+# Generate a response from ChatGPT based on the given prompt
+def chat_gpt(prompt, max_tokens=1024, max_context_tokens=4000, safety_margin=5):
+    # Truncate the prompt content to fit within the model's context length
+    truncated_prompt = truncate_text(prompt, max_context_tokens - max_tokens - safety_margin)
+    response = client.chat.completions.create(
+     messages=[{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": truncated_prompt}],
+    # model="gpt-4o",
+    model="gpt-4o-mini",
+
+)
+
+    print('--------------------------------------------------')
+    return response.choices[0].message.content
+
+st.title("GOV GPT")
+
+# Main chat form
+with st.form("chat_form"):
+    query = st.text_input("You: ")
+    submit_button = st.form_submit_button("Send")
+
+
+negtive_response = "answer with your general knowledge and then mention information is not provided"
+if submit_button:
+
+    retriever=vector_db.as_retriever()
+    prompt=ChatPromptTemplate.from_template(template)
+    llm=ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"),model="gpt-4o-mini",temperature=0.5)
+    rag_chain=(
+    {"context":retriever,"question":RunnablePassthrough()}
+    | prompt
+    | llm
+    | StrOutputParser()
+)
+    response=rag_chain.invoke(query)
+    prompt = f"Answer this question: {query}. firstly just very short answer base on your general knowledge not in details and don't mention short or first answer, then \nUsing only the information from this Elastic Doc: {response}\nIf the answer is not contained in the supplied doc reply '{negtive_response}' and nothing else"
+    answer = chat_gpt(prompt)
+    # print('answer : ',answer)
+    
+    if negtive_response in answer:
+        st.write(f"GOVGPT: {answer.strip()}")
+    else:
+        st.write(f"GovGPT: {answer.strip()}\n\n Doc: {response}")
