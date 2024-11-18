@@ -23,7 +23,7 @@ vector_db = ElasticsearchStore(
 # Define prompt template
 prompt_template = """
 
-You are an assistant for question-answering tasks.you should answer the  first in general and then in details base on provided context in the list.
+You are an assistant for question-answering tasks.First, answer with your general knowledge and you should answer the  first in general and then in details base on provided context in the list.
 Use the following pieces of retrieved context to answer the question. 
 ou are a helpful assistant and a government contract specialist. As a government contract specialist with extensive expertise, your task is to analyze the information of the provided government contracts and respond to a user's inquiry. When crafting your response, please adhere to the following guidelines:
     
@@ -88,7 +88,7 @@ if user_input := st.chat_input():
 
     # Generate assistant response
     with st.chat_message("assistant"):
-        with st.spinner("Fetching Contract ..."):
+        with st.spinner("Fetching  ..."):
             response = get_response(user_input)
             st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
