@@ -1,94 +1,172 @@
 import os
 import streamlit as st
+from typing import Dict, List
 from dotenv import load_dotenv
-from langchain.prompts import PromptTemplate
-from langchain.chains import RetrievalQA
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+from langchain.memory import ConversationBufferMemory
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_elasticsearch import ElasticsearchStore
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import LLMChainExtractor
+from langchain_community.callbacks.streamlit import StreamlitCallbackHandler
 
 # Load environment variables
 load_dotenv()
 
-# Initialize OpenAI embeddings
-openai_embedding = OpenAIEmbeddings(api_key=os.getenv("OPENAI_API_KEY"))
-
-# Elasticsearch vector store setup
-vector_db = ElasticsearchStore(
-    es_api_key=os.getenv('ES_API_KEY'),
-    es_cloud_id=os.getenv('ES_CLOUD_ID'),
-    embedding=openai_embedding,
-    index_name="test1",
-)
-
-# Define prompt template
-prompt_template = """
-
-You are an assistant for question-answering tasks.First, answer with your general knowledge and you should answer the  first in general and then if any question is asked answer question not in any sisuation.follow the coversation not only answe the question with list of contracts
-Use the following pieces of retrieved context to answer the question. 
-ou are a helpful assistant and a government contract specialist. As a government contract specialist with extensive expertise, your task is to analyze the information of the provided government contracts and respond to a user's inquiry. When crafting your response, please adhere to the following guidelines:
+# Initialize session state
+def init_session_state():
+    # Initialize all session state variables at startup
+    session_state_vars = {
+        "messages": [{"role": "assistant", "content": "Hi! How can I assist with your government contract needs today?"}],
+        "chat_history": [],
+        "conversation_memory": ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True,
+            output_key="output"
+        ),
+        "current_response": None,
+    }
     
-    Please list the contracts in the following format:
-   1) Title: title of the contract
-   2) Decription: Brief description about the contract
-   3)country and city
-   4) Vendor: Who is offering the contract
-   5) Active: Whether it is active or not
-   6) Award date (If Non-Active): date on which it was awarded
-   7) Award amount (If Non-Active): Money for the contract
-   8) Award number (If Non-Active): award number for the contract
-   9) Link: link to the contract 
+    for var, default_value in session_state_vars.items():
+        if var not in st.session_state:
+            st.session_state[var] = default_value
 
+# Cache the embedding model
+@st.cache_resource
+def get_embeddings():
+    return OpenAIEmbeddings(api_key=os.getenv("OPENAI_API_KEY"))
 
-    Please Remember:
-       1) If a user asks for awards details, don't tell them that you don't have the capability of delivering it. If there are no award details available, tell the user these contracts are active thus there are no award detail available.
-       2) If a user akss for award details of similar contracts, only list those contracts which have award details in them.
-       3) Your first priority should be to always display Active contracts. If not available or specified by user, then display non-active contracts
+# Cache the vector store
+@st.cache_resource
+def get_vector_store():
+    embeddings = get_embeddings()
+    return ElasticsearchStore(
+        es_api_key=os.getenv('ES_API_KEY'),
+        es_cloud_id=os.getenv('ES_CLOUD_ID'),
+        embedding=embeddings,
+        index_name="test1",
+    )
 
-If you don't know the answer, just say that you don't know. 
-Use five sentences minimum and keep the answer concise.
-Question: {question} 
-Context: {context} 
-Answer:
-"""
+def format_chat_history(messages: List[Dict]) -> str:
+    formatted_history = []
+    for msg in messages:
+        role = msg["role"]
+        content = msg["content"]
+        formatted_history.append(f"{role.capitalize()}: {content}")
+    return "\n".join(formatted_history[-5:])  # Keep last 5 messages for context
 
-custom_prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+class ContractAssistant:
+    def __init__(self):
+        self.llm = ChatOpenAI(
+            api_key=os.getenv("OPENAI_API_KEY"),
+             model="gpt-4o-mini",
+            temperature=0.7,
+            streaming=True
+        )
+        self.vector_store = get_vector_store()
+        self.base_retriever = self.vector_store.as_retriever(
+            search_kwargs={"k": 5}
+        )
+        
+    def get_response(self, question: str) -> Dict:
+        try:
+            # Get relevant documents
+            docs = self.base_retriever.get_relevant_documents(question)
+            context = "\n".join([doc.page_content for doc in docs])
+            
+            # Format chat history
+            chat_history = format_chat_history(st.session_state.messages[:-1])  # Exclude current question
+            
+            # Create prompt
+            prompt = PromptTemplate.from_template("""
+            You are a government contract specialist assistant. Use the following information to answer the question.
 
-# Define RetrievalQA chain
-rag_chain = RetrievalQA.from_chain_type(
-    llm=ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o-mini", temperature=0.8),
-    retriever=vector_db.as_retriever(top_k=3),
-    chain_type_kwargs={"prompt": custom_prompt}
-)
+            Chat History: {chat_history}
+            Context: {context}
+            Question: {question}
+            
+            Please provide a clear and detailed response.
+            """)
+            
+            # Create chain
+            chain = (
+                {"context": lambda x: context, 
+                 "question": lambda x: x,
+                 "chat_history": lambda x: chat_history}
+                | prompt
+                | self.llm
+                | StrOutputParser()
+            )
+            
+            # Generate response with streaming
+            with st.chat_message("assistant"):
+                response_placeholder = st.empty()
+                response = ""
+                
+                for chunk in chain.stream(question):
+                    response += chunk
+                    response_placeholder.markdown(response + "▌")
+                response_placeholder.markdown(response)
+            
+            return {
+                "answer": response,
+                "sources": docs
+            }
+            
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+            return {
+                "answer": "I apologize, but I encountered an error. Please try rephrasing your question.",
+                "sources": []
+            }
 
-# Function to get response
-def get_response(question):
-    try:
-        result = rag_chain({"query": question})
-        return result["result"]
-    except Exception as e:
-        return f"An error occurred: {str(e)}"
+def main():
+    st.set_page_config(
+        page_title="Government Contract Assistant",
+        page_icon="📑",
+        layout="wide"
+    )
+    
+    # Initialize session state first
+    init_session_state()
+    
+    st.title("📑 Government Contract Assistant")
+    st.markdown("""
+    Welcome! I can help you with:
+    - Finding active government contracts
+    - Searching for specific contract details
+    - Analyzing award information
+    - Understanding contract requirements
+    """)
 
-# Streamlit App
-st.title("Government Contract Assistant")
+    # Initialize assistant
+    assistant = ContractAssistant()
 
-# Chat functionality
-if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Hi! How can I assist with your government contract needs today?"}]
+    # Display chat history
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-# Display chat history
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    # Handle user input
+    if user_input := st.chat_input("Ask about government contracts..."):
+        # Add user message to chat
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
-# Input for user query
-if user_input := st.chat_input():
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.markdown(user_input)
+        # Get and display response
+        response = assistant.get_response(user_input)
+        
+        # Add assistant response to chat history
+        st.session_state.messages.append({"role": "assistant", "content": response["answer"]})
+        
+        # Display sources if available
+        if response["sources"]:
+            with st.expander("View Source Documents"):
+                for idx, doc in enumerate(response["sources"], 1):
+                    st.markdown(f"**Source {idx}:**\n{doc.page_content}\n")
 
-    # Generate assistant response
-    with st.chat_message("assistant"):
-        with st.spinner("Fetching  ..."):
-            response = get_response(user_input)
-            st.markdown(response)
-    st.session_state.messages.append({"role": "assistant", "content": response})
+if __name__ == "__main__":
+    main()
