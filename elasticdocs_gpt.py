@@ -62,7 +62,7 @@ class ContractAssistant:
         self.llm = ChatOpenAI(
             api_key=os.getenv("OPENAI_API_KEY"),
              model="gpt-4o-mini",
-            temperature=0.7,
+            temperature=0.3,
             streaming=True
         )
         self.vector_store = get_vector_store()
