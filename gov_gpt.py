@@ -81,7 +81,7 @@ class ContractAssistant:
             
             # Create prompt
             prompt = PromptTemplate.from_template("""
-            You are a E-Commerce specialist assistant. Use the following information to answer the question.
+            You are a government contract specialist assistant. Use the following information to answer the question.
 
             Chat History: {chat_history}
             Context: {context}
@@ -124,7 +124,7 @@ class ContractAssistant:
 
 def main():
     st.set_page_config(
-        page_title="E-Commerce  Assistant",
+        page_title="Government Contract Assistant",
         page_icon="📑",
         layout="wide"
     )
@@ -135,7 +135,10 @@ def main():
     st.title("📑 Government Contract Assistant")
     st.markdown("""
     Welcome! I can help you with:
-    - Finding active product in basalam website
+    - Finding active government contracts
+    - Searching for specific contract details
+    - Analyzing award information
+    - Understanding contract requirements
     """)
 
     # Initialize assistant
@@ -147,7 +150,7 @@ def main():
             st.markdown(message["content"])
 
     # Handle user input
-    if user_input := st.chat_input("Ask me about products..."):
+    if user_input := st.chat_input("Ask about government contracts..."):
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
