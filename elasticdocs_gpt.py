@@ -124,7 +124,7 @@ class ContractAssistant:
 
 def main():
     st.set_page_config(
-        page_title="E-Commerce  Assistant",
+        page_title="E-Commerce Assistant",
         page_icon="📑",
         layout="wide"
     )
@@ -132,7 +132,7 @@ def main():
     # Initialize session state first
     init_session_state()
     
-    st.title("📑 Government Contract Assistant")
+    st.title("E-Commerce Assistant")
     st.markdown("""
     Welcome! I can help you with:
     - Finding active product in basalam website
