@@ -46,7 +46,7 @@ def get_vector_store():
         es_api_key=os.getenv('ES_API_KEY'),
         es_cloud_id=os.getenv('ES_CLOUD_ID'),
         embedding=embeddings,
-        index_name="test1",
+        index_name="basalam_test_4_1000",
     )
 
 def format_chat_history(messages: List[Dict]) -> str:
